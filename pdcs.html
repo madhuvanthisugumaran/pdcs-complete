@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDCS · Personal Drug Compatibility Score</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0f1c;
+    --bg-panel:#111a2e;
+    --bg-panel-2:#16213b;
+    --line: rgba(232,236,244,0.08);
+    --line-strong: rgba(232,236,244,0.16);
+    --text:#e8ecf4;
+    --text-dim:#8891a8;
+    --text-faint:#5c6580;
+    --teal:#2dd4bf;
+    --teal-dim: rgba(45,212,191,0.15);
+    --lavender:#a78bfa;
+    --lavender-dim: rgba(167,139,250,0.15);
+    --amber:#fb923c;
+    --amber-dim: rgba(251,146,60,0.15);
+    --red:#f87171;
+    --red-dim: rgba(248,113,113,0.15);
+    --green:#4ade80;
+    --green-dim: rgba(74,222,128,0.15);
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--teal); color:#04120f;}
+
+  /* ambient grid backdrop */
+  .grid-backdrop{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:64px 64px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 90%);
+    opacity:0.6;
+  }
+
+  a{color:inherit;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+
+  /* NAV */
+  nav{
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 40px;
+    backdrop-filter:blur(14px);
+    background:rgba(10,15,28,0.55);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--display); font-weight:700; font-size:19px; letter-spacing:0.02em;}
+  .brand .dot{width:9px; height:9px; border-radius:50%; background:var(--teal); box-shadow:0 0 12px var(--teal);}
+  .navlinks{display:flex; gap:36px; font-size:14px; color:var(--text-dim);}
+  .navlinks a{text-decoration:none; transition:color .2s;}
+  .navlinks a:hover{color:var(--teal);}
+  .nav-cta{
+    font-size:13px; font-family:var(--mono); font-weight:500;
+    border:1px solid var(--line-strong); padding:9px 18px; border-radius:100px;
+    background:var(--teal-dim); color:var(--teal); text-decoration:none;
+    transition:all .2s;
+  }
+  .nav-cta:hover{background:var(--teal); color:#04120f;}
+
+  /* HERO */
+  .hero{
+    position:relative; min-height:100vh; display:flex; align-items:center;
+    padding:140px 40px 80px; overflow:hidden;
+  }
+  .hero-layer{position:absolute; inset:0; pointer-events:none;}
+  .orbit-field{position:absolute; top:0; right:-6%; width:640px; height:640px; z-index:1;}
+  .hero-content{position:relative; z-index:5; max-width:640px;}
+  .eyebrow{
+    font-family:var(--mono); font-size:12.5px; color:var(--teal); letter-spacing:0.14em; text-transform:uppercase;
+    display:flex; align-items:center; gap:10px; margin-bottom:22px;
+  }
+  .eyebrow::before{content:''; width:22px; height:1px; background:var(--teal);}
+  h1.hero-title{
+    font-family:var(--display); font-weight:700; font-size:clamp(40px,5.6vw,66px);
+    line-height:1.04; letter-spacing:-0.01em; margin-bottom:24px;
+  }
+  h1.hero-title .accent{color:var(--teal);}
+  .hero-sub{font-size:17px; color:var(--text-dim); line-height:1.65; max-width:520px; margin-bottom:36px;}
+  .hero-actions{display:flex; gap:14px; align-items:center; flex-wrap:wrap;}
+  .btn-primary{
+    font-family:var(--body); font-weight:600; font-size:15px;
+    background:var(--teal); color:#04120f; border:none; padding:15px 28px; border-radius:10px;
+    cursor:pointer; text-decoration:none; display:inline-block;
+    box-shadow:0 0 0 0 rgba(45,212,191,0.5);
+    transition:transform .2s, box-shadow .3s;
+  }
+  .btn-primary:hover{transform:translateY(-2px); box-shadow:0 8px 24px rgba(45,212,191,0.25);}
+  .btn-ghost{
+    font-family:var(--body); font-weight:500; font-size:15px; color:var(--text);
+    border:1px solid var(--line-strong); padding:14px 26px; border-radius:10px;
+    text-decoration:none; display:inline-block; transition:border-color .2s, background .2s;
+  }
+  .btn-ghost:hover{border-color:var(--teal); background:rgba(45,212,191,0.06);}
+
+  .hero-stats{display:flex; gap:44px; margin-top:56px;}
+  .hstat b{display:block; font-family:var(--mono); font-size:26px; color:var(--teal); font-weight:700;}
+  .hstat span{font-size:12.5px; color:var(--text-faint);}
+
+  /* floating capsule svgs for parallax */
+  .float-el{position:absolute; will-change:transform;}
+
+  /* SECTION shells */
+  section{position:relative; z-index:2;}
+  .section-pad{padding:120px 40px;}
+  .section-head{max-width:640px; margin-bottom:64px;}
+  .section-eyebrow{
+    font-family:var(--mono); font-size:12px; color:var(--lavender); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:14px;
+  }
+  h2.section-title{font-family:var(--display); font-size:clamp(28px,3.6vw,42px); font-weight:700; letter-spacing:-0.01em; margin-bottom:16px;}
+  .section-desc{color:var(--text-dim); font-size:16px; line-height:1.7;}
+
+  /* PROBLEM */
+  .problem-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:16px; overflow:hidden;}
+  .problem-card{background:var(--bg-panel); padding:36px 30px;}
+  .problem-card .pnum{font-family:var(--mono); font-size:13px; color:var(--text-faint); margin-bottom:18px;}
+  .problem-card h3{font-family:var(--display); font-size:19px; margin-bottom:12px; font-weight:600;}
+  .problem-card p{color:var(--text-dim); font-size:14.5px; line-height:1.65;}
+
+  /* PIPELINE */
+  .pipeline{position:relative;}
+  .pipe-row{display:flex; align-items:stretch; gap:0; overflow-x:auto; padding-bottom:12px;}
+  .pipe-node{
+    min-width:210px; background:var(--bg-panel); border:1px solid var(--line); border-radius:14px;
+    padding:26px 22px; position:relative; flex:1;
+  }
+  .pipe-node .pn-icon{width:38px; height:38px; border-radius:10px; background:var(--lavender-dim); display:flex; align-items:center; justify-content:center; margin-bottom:16px;}
+  .pipe-node h4{font-family:var(--display); font-size:15.5px; margin-bottom:8px; font-weight:600;}
+  .pipe-node p{font-size:13px; color:var(--text-dim); line-height:1.55;}
+  .pipe-arrow{display:flex; align-items:center; justify-content:center; width:44px; color:var(--text-faint); flex-shrink:0;}
+
+  /* INPUT FACTORS strip */
+  .factor-strip{display:flex; flex-wrap:wrap; gap:10px; margin-top:40px;}
+  .factor-chip{
+    font-family:var(--mono); font-size:12.5px; color:var(--text-dim);
+    border:1px solid var(--line-strong); padding:8px 16px; border-radius:100px;
+    background:var(--bg-panel);
+  }
+
+  /* DEMO SECTION */
+  .demo-section{background:linear-gradient(180deg, transparent, rgba(45,212,191,0.03) 8%, rgba(45,212,191,0.03) 92%, transparent);}
+  .demo-shell{
+    background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:22px;
+    padding:0; overflow:hidden;
+  }
+  .demo-top{display:flex; align-items:center; justify-content:space-between; padding:22px 30px; border-bottom:1px solid var(--line); background:var(--bg-panel-2);}
+  .demo-top .dots{display:flex; gap:7px;}
+  .demo-top .dots span{width:10px; height:10px; border-radius:50%; background:var(--line-strong);}
+  .demo-top .label{font-family:var(--mono); font-size:12px; color:var(--text-faint);}
+
+  .demo-body{display:grid; grid-template-columns:1fr 1fr; min-height:640px;}
+  .demo-form{padding:38px; border-right:1px solid var(--line);}
+  .demo-results{padding:38px; background:var(--bg);}
+
+  .form-group{margin-bottom:24px;}
+  .form-group label{display:block; font-size:12.5px; font-family:var(--mono); color:var(--text-dim); margin-bottom:9px; text-transform:uppercase; letter-spacing:0.06em;}
+  .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  input[type=number], input[type=text], select{
+    width:100%; background:var(--bg-panel-2); border:1px solid var(--line-strong); color:var(--text);
+    padding:12px 14px; border-radius:9px; font-family:var(--body); font-size:14.5px; outline:none;
+    transition:border-color .2s;
+  }
+  input:focus, select:focus{border-color:var(--teal);}
+  .pill-group{display:flex; flex-wrap:wrap; gap:8px;}
+  .pill-toggle{
+    font-size:13px; padding:8px 14px; border-radius:100px; border:1px solid var(--line-strong);
+    background:var(--bg-panel-2); color:var(--text-dim); cursor:pointer; user-select:none; transition:all .15s;
+  }
+  .pill-toggle.active{background:var(--teal-dim); border-color:var(--teal); color:var(--teal);}
+  .tag-input-wrap{
+    background:var(--bg-panel-2); border:1px solid var(--line-strong); border-radius:9px; padding:8px 10px;
+    display:flex; flex-wrap:wrap; gap:7px; min-height:46px; align-items:center;
+  }
+  .tag-input-wrap input{background:transparent; border:none; flex:1; min-width:100px; padding:6px 4px;}
+  .tag{
+    font-size:12.5px; font-family:var(--mono); background:var(--lavender-dim); color:var(--lavender);
+    padding:5px 10px; border-radius:6px; display:flex; align-items:center; gap:6px;
+  }
+  .tag button{background:none; border:none; color:var(--lavender); cursor:pointer; font-size:13px; line-height:1;}
+  .hint{font-size:11.5px; color:var(--text-faint); margin-top:6px;}
+
+  .btn-run{
+    width:100%; margin-top:8px; background:var(--teal); color:#04120f; border:none; padding:16px;
+    font-family:var(--body); font-weight:700; font-size:15px; border-radius:10px; cursor:pointer;
+    transition:transform .15s, box-shadow .3s; display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn-run:hover{transform:translateY(-1px); box-shadow:0 10px 26px rgba(45,212,191,0.25);}
+  .btn-run:active{transform:translateY(0);}
+
+  /* RESULTS */
+  .results-empty{height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:var(--text-faint); gap:16px; min-height:540px;}
+  .results-empty svg{opacity:0.4;}
+  .results-empty p{font-size:14px; max-width:260px; line-height:1.6;}
+
+  .results-content{display:none;}
+  .results-content.show{display:block; animation:fadeUp .5s ease both;}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+
+  .pdcs-header{display:flex; align-items:center; gap:28px; margin-bottom:30px; padding-bottom:28px; border-bottom:1px solid var(--line);}
+  .gauge-wrap{position:relative; width:132px; height:132px; flex-shrink:0;}
+  .gauge-wrap svg{transform:rotate(-90deg);}
+  .gauge-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .gauge-num b{font-family:var(--mono); font-size:28px; font-weight:700;}
+  .gauge-num span{font-size:10px; color:var(--text-faint); letter-spacing:0.08em; text-transform:uppercase;}
+  .pdcs-meta .risk-badge{
+    display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border-radius:100px; font-family:var(--mono);
+    font-size:12.5px; font-weight:600; margin-bottom:10px;
+  }
+  .risk-badge .rdot{width:7px; height:7px; border-radius:50%;}
+  .pdcs-meta h3{font-family:var(--display); font-size:19px; margin-bottom:6px;}
+  .pdcs-meta p{font-size:13px; color:var(--text-dim); max-width:280px; line-height:1.5;}
+
+  .res-block{margin-bottom:28px;}
+  .res-block h4{font-family:var(--display); font-size:14.5px; margin-bottom:14px; display:flex; align-items:center; gap:8px; color:var(--text);}
+  .res-block h4::before{content:''; width:14px; height:1px; background:var(--teal);}
+
+  .shap-bar-row{display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:12.5px;}
+  .shap-label{width:150px; flex-shrink:0; color:var(--text-dim); font-family:var(--mono); font-size:11.5px;}
+  .shap-track{flex:1; height:8px; background:var(--bg-panel-2); border-radius:4px; position:relative; overflow:hidden;}
+  .shap-fill{height:100%; border-radius:4px; transition:width 1s cubic-bezier(.16,1,.3,1);}
+  .shap-val{width:38px; text-align:right; font-family:var(--mono); font-size:11.5px; color:var(--text-faint);}
+
+  .se-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .se-card{background:var(--bg-panel-2); border:1px solid var(--line); border-radius:10px; padding:14px;}
+  .se-card .se-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .se-card .se-name{font-size:12.5px; color:var(--text-dim);}
+  .se-card .se-pct{font-family:var(--mono); font-size:15px; font-weight:700;}
+  .se-bar{height:5px; background:var(--bg); border-radius:3px; overflow:hidden;}
+  .se-bar-fill{height:100%; border-radius:3px; transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+  .alt-card{
+    background:var(--bg-panel-2); border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;
+  }
+  .alt-card .alt-name{font-size:14px; font-weight:600;}
+  .alt-card .alt-sub{font-size:11.5px; color:var(--text-faint); margin-top:3px;}
+  .alt-card .alt-score{font-family:var(--mono); font-size:13px; color:var(--green); font-weight:700;}
+
+  .dose-timeline{display:flex; gap:8px;}
+  .dose-slot{
+    flex:1; background:var(--bg-panel-2); border:1px solid var(--line); border-radius:10px; padding:14px 10px;
+    text-align:center; position:relative;
+  }
+  .dose-slot.rec{border-color:var(--teal); background:var(--teal-dim);}
+  .dose-slot .ds-time{font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-bottom:6px;}
+  .dose-slot .ds-icon{font-size:18px; margin-bottom:6px;}
+  .dose-slot .ds-label{font-size:10.5px; color:var(--text-dim);}
+  .dose-slot.rec .ds-label{color:var(--teal); font-weight:600;}
+
+  .disclaimer-box{
+    margin-top:26px; padding:14px 16px; border-radius:10px; background:var(--amber-dim); border:1px solid rgba(251,146,60,0.3);
+    font-size:12px; color:#fdba8c; line-height:1.6;
+  }
+
+  /* NOVELTY */
+  .novelty-wrap{display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center;}
+  .novelty-visual{position:relative; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center;}
+  .novelty-list{display:flex; flex-direction:column; gap:26px;}
+  .nv-item{display:flex; gap:18px;}
+  .nv-item .nv-marker{
+    width:30px; height:30px; border-radius:8px; background:var(--teal-dim); color:var(--teal); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:13px; font-weight:700;
+  }
+  .nv-item h4{font-family:var(--display); font-size:16px; margin-bottom:6px; font-weight:600;}
+  .nv-item p{font-size:14px; color:var(--text-dim); line-height:1.6;}
+
+  /* STACK */
+  .stack-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  .stack-card{background:var(--bg-panel); border:1px solid var(--line); border-radius:16px; padding:30px;}
+  .stack-card .stack-tag{font-family:var(--mono); font-size:11px; color:var(--lavender); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:14px;}
+  .stack-card h3{font-family:var(--display); font-size:18px; margin-bottom:10px;}
+  .stack-card p{font-size:13.5px; color:var(--text-dim); line-height:1.6;}
+
+  footer{
+    padding:60px 40px 40px; border-top:1px solid var(--line); text-align:center;
+  }
+  footer p{color:var(--text-faint); font-size:12.5px; font-family:var(--mono);}
+
+  .reveal{opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s ease;}
+  .reveal.in{opacity:1; transform:translateY(0);}
+
+  @media (max-width: 900px){
+    .demo-body{grid-template-columns:1fr;}
+    .demo-form{border-right:none; border-bottom:1px solid var(--line);}
+    .problem-grid{grid-template-columns:1fr;}
+    .novelty-wrap{grid-template-columns:1fr;}
+    .stack-grid{grid-template-columns:1fr;}
+    .navlinks{display:none;}
+    .orbit-field{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-backdrop"></div>
+
+<nav>
+  <div class="brand"><span class="dot"></span>PDCS Engine</div>
+  <div class="navlinks">
+    <a href="#problem">Problem</a>
+    <a href="#pipeline">How it works</a>
+    <a href="#demo">Try it</a>
+    <a href="#novelty">Novelty</a>
+    <a href="#stack">Stack</a>
+  </div>
+  <a href="#demo" class="nav-cta">Run prediction →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-layer">
+    <svg class="float-el" data-speed="0.15" style="top:14%; left:52%;" width="70" height="70" viewBox="0 0 70 70">
+      <rect x="10" y="26" width="50" height="18" rx="9" fill="none" stroke="#2dd4bf" stroke-width="1.4" opacity="0.5" transform="rotate(30 35 35)"/>
+    </svg>
+    <svg class="float-el" data-speed="0.3" style="top:60%; left:60%;" width="46" height="46" viewBox="0 0 46 46">
+      <circle cx="23" cy="23" r="20" fill="none" stroke="#a78bfa" stroke-width="1.2" opacity="0.4"/>
+    </svg>
+    <svg class="float-el" data-speed="0.22" style="top:30%; left:78%;" width="90" height="40" viewBox="0 0 90 40">
+      <rect x="6" y="6" width="78" height="28" rx="14" fill="none" stroke="#fb923c" stroke-width="1.2" opacity="0.35"/>
+      <line x1="45" y1="6" x2="45" y2="34" stroke="#fb923c" stroke-width="1.2" opacity="0.35"/>
+    </svg>
+    <svg class="float-el" data-speed="0.1" style="top:76%; left:80%;" width="54" height="54" viewBox="0 0 54 54">
+      <path d="M27 4 L27 50 M4 27 L50 27" stroke="#2dd4bf" stroke-width="1" opacity="0.3"/>
+      <circle cx="27" cy="27" r="24" fill="none" stroke="#2dd4bf" stroke-width="1" opacity="0.25"/>
+    </svg>
+    <svg class="float-el" data-speed="0.35" style="top:8%; left:70%;" width="30" height="30" viewBox="0 0 30 30">
+      <circle cx="15" cy="15" r="3" fill="#2dd4bf" opacity="0.6"/>
+    </svg>
+  </div>
+
+  <div class="wrap" style="position:relative;">
+    <div class="hero-content">
+      <div class="eyebrow">Explainable AI · Personalized Pharmacology</div>
+      <h1 class="hero-title">One score for<br>every pill in<br class="mobile-only"> <span class="accent">your regimen.</span></h1>
+      <p class="hero-sub">Most interaction checkers compare drug pairs in isolation. PDCS fuses your age, weight, conditions, allergies, side-effect history and lifestyle with your full medication list — producing a single, explainable Personal Drug Compatibility Score.</p>
+      <div class="hero-actions">
+        <a href="#demo" class="btn-primary">Run a live prediction</a>
+        <a href="#pipeline" class="btn-ghost">See the pipeline</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><b>7</b><span>Patient-level inputs fused</span></div>
+        <div class="hstat"><b>3</b><span>Models in the ensemble</span></div>
+        <div class="hstat"><b id="heroLive">0–100</b><span>PDCS score range</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem" class="section-pad">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">The gap</div>
+      <h2 class="section-title">Interaction checkers stop at the drug pair.</h2>
+      <p class="section-desc">Two medicines can be individually fine, mutually fine on paper, and still risky for <em>this</em> patient. Existing tools rarely account for who is taking them.</p>
+    </div>
+    <div class="problem-grid reveal">
+      <div class="problem-card">
+        <div class="pnum">01</div>
+        <h3>Same pill, different patient</h3>
+        <p>A dosage that's safe for a 30-year-old with normal kidney function can be dangerous for a 70-year-old with reduced renal clearance — most checkers apply the same rule to both.</p>
+      </div>
+      <div class="problem-card">
+        <div class="pnum">02</div>
+        <h3>History is ignored</h3>
+        <p>A patient who reacted badly to a similar compound before is flagged identically to someone with a clean history. Prior side effects are rarely fed back into the risk model.</p>
+      </div>
+      <div class="problem-card">
+        <div class="pnum">03</div>
+        <h3>No lifestyle context</h3>
+        <p>Smoking and alcohol use materially change how drugs metabolize, yet they're almost never part of a standard interaction lookup.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PIPELINE -->
+<section id="pipeline" class="section-pad pipeline">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">Under the hood</div>
+      <h2 class="section-title">How a PDCS score gets built</h2>
+      <p class="section-desc">Structured patient data flows through a gradient-boosted ensemble, and every prediction is decomposed back into human-readable factors before it reaches a clinician or patient.</p>
+    </div>
+    <div class="pipe-row reveal">
+      <div class="pipe-node">
+        <div class="pn-icon">📋</div>
+        <h4>Patient profile intake</h4>
+        <p>Age, weight, conditions, current medicines, allergies, prior reactions, lifestyle flags.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">🧬</div>
+        <h4>Feature engineering</h4>
+        <p>Drug-drug pairs, drug-condition contraindications, metabolic load, and BMI-adjusted dosage bands.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">🌲</div>
+        <h4>Random Forest</h4>
+        <p>Baseline risk classification across known interaction categories — high recall, low variance.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">⚡</div>
+        <h4>XGBoost</h4>
+        <p>Gradient-boosted refinement layer that captures non-linear interactions between rare factor combinations.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">🔍</div>
+        <h4>SHAP explainability</h4>
+        <p>Every prediction is decomposed into per-feature contributions — no black-box score.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">🎯</div>
+        <h4>PDCS output</h4>
+        <p>Risk score, alternatives, safe dosage window, side-effect probabilities.</p>
+      </div>
+    </div>
+    <div class="factor-strip reveal">
+      <span class="factor-chip">Age</span>
+      <span class="factor-chip">Weight</span>
+      <span class="factor-chip">Medical conditions</span>
+      <span class="factor-chip">Current medicines</span>
+      <span class="factor-chip">Allergies</span>
+      <span class="factor-chip">Previous side effects</span>
+      <span class="factor-chip">Smoking</span>
+      <span class="factor-chip">Alcohol use</span>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section id="demo" class="section-pad demo-section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">Live prototype</div>
+      <h2 class="section-title">Try the PDCS engine</h2>
+      <p class="section-desc">Fill in a patient profile on the left. The panel on the right runs the (simulated) ensemble in your browser and returns a full explainable prediction — no data leaves this page.</p>
+    </div>
+
+    <div class="demo-shell reveal">
+      <div class="demo-top">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">pdcs_engine.predict(patient_profile)</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Age (years)</label>
+              <input type="number" id="inAge" value="58" min="1" max="110">
+            </div>
+            <div class="form-group">
+              <label>Weight (kg)</label>
+              <input type="number" id="inWeight" value="72" min="10" max="250">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Medical conditions</label>
+            <div class="pill-group" id="conditionsGroup">
+              <div class="pill-toggle active" data-val="Hypertension">Hypertension</div>
+              <div class="pill-toggle" data-val="Diabetes">Diabetes</div>
+              <div class="pill-toggle" data-val="Kidney disease">Kidney disease</div>
+              <div class="pill-toggle" data-val="Liver disease">Liver disease</div>
+              <div class="pill-toggle" data-val="Heart disease">Heart disease</div>
+              <div class="pill-toggle" data-val="Asthma">Asthma</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Current medicines</label>
+            <div class="tag-input-wrap" id="medsWrap">
+              <input type="text" id="medsInput" placeholder="Type a medicine + Enter">
+            </div>
+            <div class="hint">Try: Warfarin, Ibuprofen, Metformin, Amlodipine, Simvastatin</div>
+          </div>
+
+          <div class="form-group">
+            <label>Allergies</label>
+            <div class="tag-input-wrap" id="allergyWrap">
+              <input type="text" id="allergyInput" placeholder="Type an allergy + Enter">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Previous side effects experienced</label>
+            <div class="pill-group" id="sideEffectGroup">
+              <div class="pill-toggle" data-val="Nausea">Nausea</div>
+              <div class="pill-toggle" data-val="Dizziness">Dizziness</div>
+              <div class="pill-toggle" data-val="Rash">Rash</div>
+              <div class="pill-toggle" data-val="Drowsiness">Drowsiness</div>
+              <div class="pill-toggle" data-val="GI bleeding">GI bleeding</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Smoking</label>
+              <select id="inSmoking">
+                <option value="0">Non-smoker</option>
+                <option value="1">Former smoker</option>
+                <option value="2">Current smoker</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Alcohol use</label>
+              <select id="inAlcohol">
+                <option value="0">None</option>
+                <option value="1">Occasional</option>
+                <option value="2">Regular</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn-run" id="runBtn">
+            <span>Run PDCS prediction</span>
+          </button>
+        </div>
+
+        <div class="demo-results">
+          <div class="results-empty" id="emptyState">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none"><circle cx="28" cy="28" r="24" stroke="#5c6580" stroke-width="1.5"/><path d="M28 16v12l8 8" stroke="#5c6580" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <p>Fill in the patient profile and run a prediction to see the PDCS score, explainability breakdown, and dosage guidance appear here.</p>
+          </div>
+
+          <div class="results-content" id="resultsContent">
+            <div class="pdcs-header">
+              <div class="gauge-wrap">
+                <svg width="132" height="132" viewBox="0 0 132 132">
+                  <circle cx="66" cy="66" r="56" fill="none" stroke="#16213b" stroke-width="10"/>
+                  <circle id="gaugeArc" cx="66" cy="66" r="56" fill="none" stroke="#2dd4bf" stroke-width="10" stroke-linecap="round" stroke-dasharray="352" stroke-dashoffset="352"/>
+                </svg>
+                <div class="gauge-num"><b id="gaugeNum">0</b><span>PDCS</span></div>
+              </div>
+              <div class="pdcs-meta">
+                <div class="risk-badge" id="riskBadge"><span class="rdot"></span><span id="riskLabel">—</span></div>
+                <h3 id="riskHeadline">—</h3>
+                <p id="riskSub">—</p>
+              </div>
+            </div>
+
+            <div class="res-block">
+              <h4>SHAP factor contribution</h4>
+              <div id="shapContainer"></div>
+            </div>
+
+            <div class="res-block">
+              <h4>Probability of side effects</h4>
+              <div class="se-grid" id="seGrid"></div>
+            </div>
+
+            <div class="res-block">
+              <h4>Safer alternatives</h4>
+              <div id="altContainer"></div>
+            </div>
+
+            <div class="res-block">
+              <h4>Recommended dosage window</h4>
+              <div class="dose-timeline" id="doseTimeline"></div>
+            </div>
+
+            <div class="disclaimer-box">⚠ Prototype output — simulated model for demonstration purposes only. Not validated on real clinical data and not a substitute for professional medical advice.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NOVELTY -->
+<section id="novelty" class="section-pad">
+  <div class="wrap">
+    <div class="novelty-wrap">
+      <div class="novelty-visual reveal">
+        <svg width="100%" height="100%" viewBox="0 0 400 400" style="max-width:420px;">
+          <circle cx="200" cy="200" r="150" fill="none" stroke="#16213b" stroke-width="1"/>
+          <circle cx="200" cy="200" r="110" fill="none" stroke="#16213b" stroke-width="1"/>
+          <circle cx="200" cy="200" r="70" fill="none" stroke="#16213b" stroke-width="1"/>
+          <g id="orbitGroup">
+            <circle cx="200" cy="50" r="5" fill="#2dd4bf"/>
+            <circle cx="331" cy="125" r="5" fill="#a78bfa"/>
+            <circle cx="331" cy="275" r="5" fill="#fb923c"/>
+            <circle cx="200" cy="350" r="5" fill="#2dd4bf"/>
+            <circle cx="69" cy="275" r="5" fill="#a78bfa"/>
+            <circle cx="69" cy="125" r="5" fill="#fb923c"/>
+          </g>
+          <line x1="200" y1="50" x2="200" y2="200" stroke="#2dd4bf" stroke-width="0.6" opacity="0.4"/>
+          <line x1="331" y1="125" x2="200" y2="200" stroke="#a78bfa" stroke-width="0.6" opacity="0.4"/>
+          <line x1="331" y1="275" x2="200" y2="200" stroke="#fb923c" stroke-width="0.6" opacity="0.4"/>
+          <line x1="200" y1="350" x2="200" y2="200" stroke="#2dd4bf" stroke-width="0.6" opacity="0.4"/>
+          <line x1="69" y1="275" x2="200" y2="200" stroke="#a78bfa" stroke-width="0.6" opacity="0.4"/>
+          <line x1="69" y1="125" x2="200" y2="200" stroke="#fb923c" stroke-width="0.6" opacity="0.4"/>
+          <circle cx="200" cy="200" r="42" fill="#111a2e" stroke="#2dd4bf" stroke-width="1.5"/>
+          <text x="200" y="196" text-anchor="middle" fill="#e8ecf4" font-family="JetBrains Mono" font-size="13" font-weight="700">PDCS</text>
+          <text x="200" y="212" text-anchor="middle" fill="#8891a8" font-family="Inter" font-size="9">fused score</text>
+        </svg>
+      </div>
+      <div class="novelty-list">
+        <div class="section-eyebrow" style="margin-bottom:-6px;">What's new</div>
+        <h2 class="section-title" style="margin-bottom:6px;">Beyond pairwise interaction checks</h2>
+        <div class="nv-item reveal">
+          <div class="nv-marker">01</div>
+          <div><h4>Whole-regimen scoring, not pair-by-pair</h4><p>PDCS treats the full medicine list plus the patient profile as one input, instead of checking each drug pair against a static table.</p></div>
+        </div>
+        <div class="nv-item reveal">
+          <div class="nv-marker">02</div>
+          <div><h4>Personal history as a feature</h4><p>Prior side effects and allergies shift the score for that specific patient, not just for the drug in general.</p></div>
+        </div>
+        <div class="nv-item reveal">
+          <div class="nv-marker">03</div>
+          <div><h4>Built-in explainability</h4><p>SHAP values expose exactly which factors pushed the score up or down, so the output is auditable rather than a black box.</p></div>
+        </div>
+        <div class="nv-item reveal">
+          <div class="nv-marker">04</div>
+          <div><h4>Actionable, not just a warning</h4><p>Alternative medicines and a safe dosage window are generated alongside the risk score, closing the loop for the patient.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section id="stack" class="section-pad">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-eyebrow">Model stack</div>
+      <h2 class="section-title">The algorithms behind the score</h2>
+    </div>
+    <div class="stack-grid reveal">
+      <div class="stack-card">
+        <div class="stack-tag">Baseline classifier</div>
+        <h3>Random Forest</h3>
+        <p>An ensemble of decision trees votes on a coarse risk tier from patient and drug features — robust to noisy or missing fields, which matters for real-world intake forms.</p>
+      </div>
+      <div class="stack-card">
+        <div class="stack-tag">Refinement layer</div>
+        <h3>XGBoost</h3>
+        <p>Gradient boosting sharpens the Random Forest baseline, learning subtle non-linear combinations — like age × kidney disease × a specific drug class — that simple rule tables miss.</p>
+      </div>
+      <div class="stack-card">
+        <div class="stack-tag">Explainability</div>
+        <h3>SHAP</h3>
+        <p>Shapley-value attribution breaks every prediction into per-feature contributions, so a clinician can see exactly why the score moved, not just what it is.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>PDCS ENGINE · HACKATHON PROTOTYPE · SIMULATED PREDICTIONS FOR DEMONSTRATION ONLY</p>
+</footer>
+
+<script>
+// ---------- Parallax ----------
+const floatEls = document.querySelectorAll('.float-el');
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  floatEls.forEach(el => {
+    const speed = parseFloat(el.dataset.speed) || 0.2;
+    el.style.transform = `translateY(${y * speed}px) rotate(${y * speed * 0.05}deg)`;
+  });
+});
+
+// gentle idle float animation
+floatEls.forEach((el, i) => {
+  el.animate(
+    [{ transform: el.style.transform + ' translateX(0px)' }, { transform: el.style.transform + ' translateX(14px)' }, { transform: el.style.transform + ' translateX(0px)' }],
+    { duration: 6000 + i * 800, iterations: Infinity, easing: 'ease-in-out' }
+  );
+});
+
+// orbit group slow rotation
+const orbit = document.getElementById('orbitGroup');
+let orbitDeg = 0;
+function spinOrbit(){
+  orbitDeg += 0.06;
+  orbit.setAttribute('transform', `rotate(${orbitDeg} 200 200)`);
+  requestAnimationFrame(spinOrbit);
+}
+spinOrbit();
+
+// ---------- Scroll reveal ----------
+const revealEls = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+}, { threshold: 0.15 });
+revealEls.forEach(el => io.observe(el));
+
+// ---------- Pill toggles ----------
+document.querySelectorAll('.pill-group').forEach(group => {
+  group.addEventListener('click', (e) => {
+    const pill = e.target.closest('.pill-toggle');
+    if(!pill) return;
+    pill.classList.toggle('active');
+  });
+});
+
+// ---------- Tag inputs ----------
+function setupTagInput(inputId, wrapId){
+  const input = document.getElementById(inputId);
+  const wrap = document.getElementById(wrapId);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && input.value.trim()){
+      e.preventDefault();
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.innerHTML = `${input.value.trim()} <button type="button">×</button>`;
+      tag.querySelector('button').addEventListener('click', () => tag.remove());
+      wrap.insertBefore(tag, input);
+      input.value = '';
+    }
+  });
+}
+setupTagInput('medsInput','medsWrap');
+setupTagInput('allergyInput','allergyWrap');
+
+// preset a couple of demo tags
+function addTag(wrapId, text){
+  const wrap = document.getElementById(wrapId);
+  const input = wrap.querySelector('input');
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.innerHTML = `${text} <button type="button">×</button>`;
+  tag.querySelector('button').addEventListener('click', () => tag.remove());
+  wrap.insertBefore(tag, input);
+}
+addTag('medsWrap','Warfarin');
+addTag('medsWrap','Ibuprofen');
+
+// ---------- Mock PDCS prediction engine ----------
+const HIGH_RISK_PAIRS = [
+  ['warfarin','ibuprofen'], ['warfarin','aspirin'], ['simvastatin','amiodarone'],
+  ['metformin','contrast dye'], ['ssri','tramadol'], ['ace inhibitor','potassium']
+];
+const ALT_SUGGESTIONS = {
+  'ibuprofen': [{name:'Acetaminophen (Paracetamol)', sub:'Lower GI bleeding risk with anticoagulants', score:92}],
+  'warfarin': [{name:'Apixaban', sub:'Fewer dietary & drug interactions', score:87}],
+  'aspirin': [{name:'Clopidogrel', sub:'Consider under clinician review', score:81}],
+  'simvastatin': [{name:'Rosuvastatin', sub:'Lower CYP3A4 interaction load', score:88}]
+};
+
+function seededRandom(seed){
+  let x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function computePrediction(){
+  const age = parseFloat(document.getElementById('inAge').value) || 30;
+  const weight = parseFloat(document.getElementById('inWeight').value) || 70;
+  const conditions = [...document.querySelectorAll('#conditionsGroup .pill-toggle.active')].map(e=>e.dataset.val);
+  const sideEffects = [...document.querySelectorAll('#sideEffectGroup .pill-toggle.active')].map(e=>e.dataset.val);
+  const meds = [...document.querySelectorAll('#medsWrap .tag')].map(t => t.textContent.replace('×','').trim());
+  const allergies = [...document.querySelectorAll('#allergyWrap .tag')].map(t => t.textContent.replace('×','').trim());
+  const smoking = parseInt(document.getElementById('inSmoking').value);
+  const alcohol = parseInt(document.getElementById('inAlcohol').value);
+
+  // --- feature scoring (simulated ensemble) ---
+  let score = 8; // base risk
+  const contributions = [];
+
+  const ageFactor = age >= 65 ? 16 : age >= 45 ? 8 : age <= 12 ? 10 : 2;
+  score += ageFactor;
+  contributions.push({label:'Age band', val: ageFactor});
+
+  const bmiProxy = weight < 50 ? 9 : weight > 100 ? 7 : 1;
+  score += bmiProxy;
+  contributions.push({label:'Weight profile', val: bmiProxy});
+
+  const condFactor = conditions.length * 6;
+  score += condFactor;
+  contributions.push({label:'Medical conditions', val: condFactor});
+
+  const medFactor = Math.max(0, (meds.length - 1)) * 9;
+  score += medFactor;
+  contributions.push({label:'Polypharmacy load', val: medFactor});
+
+  let pairFactor = 0;
+  const medsLower = meds.map(m=>m.toLowerCase());
+  HIGH_RISK_PAIRS.forEach(pair => {
+    if(pair.every(p => medsLower.some(m => m.includes(p)))) pairFactor += 22;
+  });
+  score += pairFactor;
+  contributions.push({label:'Known interaction pairs', val: pairFactor});
+
+  const sideFactor = sideEffects.length * 7;
+  score += sideFactor;
+  contributions.push({label:'Prior side-effect history', val: sideFactor});
+
+  const allergyFactor = allergies.length * 5;
+  score += allergyFactor;
+  contributions.push({label:'Allergy overlap risk', val: allergyFactor});
+
+  const lifestyleFactor = smoking * 5 + alcohol * 4;
+  score += lifestyleFactor;
+  contributions.push({label:'Lifestyle (smoking/alcohol)', val: lifestyleFactor});
+
+  score = Math.max(2, Math.min(98, Math.round(score)));
+
+  let riskTier, riskColor, riskColorVar;
+  if(score < 34){ riskTier='Low risk'; riskColor='#4ade80'; riskColorVar='green'; }
+  else if(score < 67){ riskTier='Moderate risk'; riskColor='#fb923c'; riskColorVar='amber'; }
+  else { riskTier='High risk'; riskColor='#f87171'; riskColorVar='red'; }
+
+  // side effect probabilities (simulated, driven by score + history)
+  const seNames = ['Nausea','Dizziness','Drowsiness','GI bleeding','Rash'];
+  const seProbs = seNames.map((name,i) => {
+    let base = score * (0.35 + seededRandom(score+i*3.1)*0.4);
+    if(sideEffects.includes(name)) base += 18;
+    if(name==='GI bleeding' && pairFactor>0) base += 20;
+    return { name, prob: Math.max(3, Math.min(96, Math.round(base))) };
+  }).sort((a,b)=>b.prob-a.prob).slice(0,4);
+
+  // alternatives
+  let alternatives = [];
+  medsLower.forEach(m => {
+    Object.keys(ALT_SUGGESTIONS).forEach(key => {
+      if(m.includes(key)) alternatives = alternatives.concat(ALT_SUGGESTIONS[key]);
+    });
+  });
+  if(alternatives.length===0){
+    alternatives = [{name:'No high-risk substitutions flagged', sub:'Current regimen appears compatible with this profile', score: 100-score}];
+  }
+
+  // dosage window
+  let recommended = 'Morning';
+  if(conditions.includes('Kidney disease') || conditions.includes('Liver disease')) recommended = 'Afternoon';
+  if(sideEffects.includes('Drowsiness')) recommended = 'Evening';
+  if(age >= 65) recommended = 'Morning';
+
+  return { score, riskTier, riskColor, riskColorVar, contributions, seProbs, alternatives, recommended, ageFactor, meds };
+}
+
+function renderResults(){
+  const r = computePrediction();
+
+  document.getElementById('emptyState').style.display = 'none';
+  const rc = document.getElementById('resultsContent');
+  rc.classList.remove('show'); void rc.offsetWidth; rc.classList.add('show');
+
+  // gauge
+  const circumference = 352;
+  const offset = circumference - (r.score/100)*circumference;
+  const arc = document.getElementById('gaugeArc');
+  arc.style.stroke = r.riskColor;
+  setTimeout(()=>{ arc.style.transition='stroke-dashoffset 1.1s cubic-bezier(.16,1,.3,1)'; arc.style.strokeDashoffset = offset; }, 50);
+  document.getElementById('gaugeNum').textContent = r.score;
+  document.getElementById('gaugeNum').style.color = r.riskColor;
+
+  const badge = document.getElementById('riskBadge');
+  badge.style.background = r.riskColorVar==='green' ? 'var(--green-dim)' : r.riskColorVar==='amber' ? 'var(--amber-dim)' : 'var(--red-dim)';
+  badge.style.color = r.riskColor;
+  badge.querySelector('.rdot').style.background = r.riskColor;
+  document.getElementById('riskLabel').textContent = r.riskTier;
+  document.getElementById('riskHeadline').textContent = `PDCS ${r.score} / 100`;
+  document.getElementById('riskSub').textContent = r.riskTier==='High risk'
+    ? 'Multiple compounding factors detected — clinician review recommended before continuing this regimen.'
+    : r.riskTier==='Moderate risk'
+    ? 'Some factors elevate risk. Monitor for the flagged side effects below.'
+    : 'Profile and regimen appear broadly compatible based on current inputs.';
+
+  // SHAP bars
+  const shapContainer = document.getElementById('shapContainer');
+  shapContainer.innerHTML = '';
+  const maxAbs = Math.max(...r.contributions.map(c=>Math.abs(c.val)), 1);
+  r.contributions.sort((a,b)=>Math.abs(b.val)-Math.abs(a.val)).forEach(c => {
+    const pct = Math.min(100, (Math.abs(c.val)/maxAbs)*100);
+    const color = c.val >= 0 ? '#f87171' : '#4ade80';
+    const row = document.createElement('div');
+    row.className = 'shap-bar-row';
+    row.innerHTML = `<div class="shap-label">${c.label}</div><div class="shap-track"><div class="shap-fill" style="width:0%; background:${color};"></div></div><div class="shap-val">${c.val>=0?'+':''}${c.val}</div>`;
+    shapContainer.appendChild(row);
+    requestAnimationFrame(()=> setTimeout(()=>{ row.querySelector('.shap-fill').style.width = pct+'%'; }, 60));
+  });
+
+  // side effects
+  const seGrid = document.getElementById('seGrid');
+  seGrid.innerHTML = '';
+  r.seProbs.forEach(se => {
+    const color = se.prob > 60 ? '#f87171' : se.prob > 30 ? '#fb923c' : '#4ade80';
+    const card = document.createElement('div');
+    card.className = 'se-card';
+    card.innerHTML = `<div class="se-top"><span class="se-name">${se.name}</span><span class="se-pct" style="color:${color}">${se.prob}%</span></div><div class="se-bar"><div class="se-bar-fill" style="width:0%; background:${color};"></div></div>`;
+    seGrid.appendChild(card);
+    requestAnimationFrame(()=> setTimeout(()=>{ card.querySelector('.se-bar-fill').style.width = se.prob+'%'; }, 80));
+  });
+
+  // alternatives
+  const altContainer = document.getElementById('altContainer');
+  altContainer.innerHTML = '';
+  r.alternatives.slice(0,3).forEach(alt => {
+    const card = document.createElement('div');
+    card.className = 'alt-card';
+    card.innerHTML = `<div><div class="alt-name">${alt.name}</div><div class="alt-sub">${alt.sub}</div></div><div class="alt-score">${alt.score}% match</div>`;
+    altContainer.appendChild(card);
+  });
+
+  // dosage timeline
+  const slots = ['Morning','Afternoon','Evening','Night'];
+  const icons = {'Morning':'☀️','Afternoon':'🌤️','Evening':'🌆','Night':'🌙'};
+  const timeline = document.getElementById('doseTimeline');
+  timeline.innerHTML = '';
+  slots.forEach(slot => {
+    const div = document.createElement('div');
+    div.className = 'dose-slot' + (slot===r.recommended ? ' rec' : '');
+    div.innerHTML = `<div class="ds-time">${slot==='Morning'?'7–9am':slot==='Afternoon'?'1–3pm':slot==='Evening'?'6–8pm':'9–11pm'}</div><div class="ds-icon">${icons[slot]}</div><div class="ds-label">${slot===r.recommended ? 'Recommended' : slot}</div>`;
+    timeline.appendChild(div);
+  });
+
+  document.getElementById('resultsContent').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+document.getElementById('runBtn').addEventListener('click', renderResults);
+</script>
+
+</body>
+</html>
